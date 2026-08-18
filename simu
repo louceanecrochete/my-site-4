@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur Attache-Tétine - Créa Margow</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        body {
+            background-color: #f7f4f0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 5px;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: row;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 980px;
+            height: 100%;
+            max-height: 560px;
+            overflow: hidden;
+            border: 1px solid #e6dfdb;
+        }
+
+        /* Sidebar Left */
+        .sidebar {
+            width: 305px;
+            background-color: #faf8f5;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e6dfdb;
+            height: 100%;
+        }
+        .scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .section-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: #8c7868;
+            margin-top: 8px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid #e6dfdb;
+            padding-bottom: 2px;
+        }
+        .section-title:first-child {
+            margin-top: 0;
+        }
+
+        /* Grids */
+        .letters-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 3px;
+        }
+        .letter-btn {
+            position: relative;
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 11px;
+            cursor: pointer;
+            background: #ffffff;
+            color: #5c4e43;
+            border: 1px solid #dcd4cc;
+            transition: all 0.1s;
+        }
+        .letter-btn:active { transform: scale(0.92); background: #f0ebe6; }
+
+        .clips-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+        }
+        .clip-choice-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #fff;
+            border: 1px solid #dcd4cc;
+            border-radius: 6px;
+            padding: 4px 6px;
+            cursor: pointer;
+            font-size: 11px;
+            color: #5c4e43;
+            position: relative;
+        }
+        .clip-choice-btn:hover { background: #f5f0eb; }
+        .clip-color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .beads-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+        }
+        .bead-btn {
+            position: relative;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.8);
+            transition: transform 0.1s;
+        }
+        .bead-btn:hover { transform: scale(1.06); }
+        .bead-btn.flat { height: 14px; border-radius: 7px; }
+        .bead-btn.hex {
+            clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%);
+            border-radius: 0;
+        }
+
+        .shapes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px;
+        }
+        .shape-btn {
+            position: relative;
+            background: #ffffff;
+            border: 1px solid #dcd4cc;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: transform 0.1s;
+        }
+        .shape-btn:hover { transform: scale(1.03); background: #faf5f0; }
+        .shape-btn .lbl { display: flex; flex-direction: column; }
+        .shape-btn .lbl span:first-child { font-size: 11px; font-weight: 600; color: #5c4e43; }
+        .shape-btn .lbl span:last-child { font-size: 9px; color: #8c7868; }
+
+        /*
+         * SUIVI DE STOCK : reste actif dans le JS (bloque toujours la sélection
+         * d'un article épuisé), mais ne s'affiche plus nulle part à l'écran.
+         * -> le badge numéroté est généré dans le HTML par le JS (pour rester
+         *    simple à réactiver un jour) mais cette règle le rend invisible.
+         */
+        .stock-badge {
+            display: none;
+        }
+
+        .letter-btn.out-of-stock, .bead-btn.out-of-stock, .shape-btn.out-of-stock, .clip-choice-btn.out-of-stock {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .letter-btn.out-of-stock:hover, .bead-btn.out-of-stock:hover, .shape-btn.out-of-stock:hover, .clip-choice-btn.out-of-stock:hover {
+            transform: none;
+        }
+
+        /* Sidebar Footer */
+        .sidebar-footer {
+            padding: 8px 10px;
+            background-color: #faf8f5;
+            border-top: 1px solid #e6dfdb;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .length-info { 
+            text-align: center; 
+            font-size: 11px; 
+            font-weight: 600; 
+            color: #5c4e43; 
+        }
+        .length-info.max-reached {
+            color: #c0392b;
+        }
+        .btn {
+            padding: 6px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: 600;
+            font-size: 10px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-row { display: flex; gap: 4px; justify-content: center; }
+        .btn-autumn { background-color: #c47c51; flex: 1; }
+        .btn-autumn.active { background-color: #9c5d38; }
+        .btn-wood { background-color: #8c6e54; flex: 1; }
+
+        /* Main Workspace */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            background: #f7f4f0;
+        }
+        .wooden-board {
+            width: 100%;
+            max-width: 620px;
+            background: #f2ebd9;
+            border-radius: 40px 15px 15px 15px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.05), 0 4px 15px rgba(0,0,0,0.06);
+            padding: 18px 16px;
+            position: relative;
+            border: 1px solid #e3d7c1;
+        }
+        
+        .engraved-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 0 5px;
+        }
+        .engraved-title {
+            font-family: 'Brush Script MT', cursive, Georgia, serif;
+            font-size: 26px;
+            color: #5c3a21;
+            font-weight: bold;
+        }
+        .engraved-decor {
+            font-size: 12px;
+            color: #5c3a21;
+            letter-spacing: 2px;
+        }
+
+        .board-template-box {
+            background: #eadfc9;
+            border: 1px dashed #c8b59b;
+            border-radius: 6px;
+            padding: 12px 10px;
+            position: relative;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+            margin: 6px 0;
+        }
+
+        .board-content { 
+            display: flex; 
+            align-items: center; 
+            position: relative; 
+            min-height: 40px;
+        }
+
+        .clip-wrapper { position: relative; display: flex; align-items: center; margin-right: -4px; z-index: 2; }
+        .clip-reset-btn {
+            position: absolute; left: -10px; top: -6px; width: 16px; height: 16px;
+            border-radius: 50%; background: #c47c51; color: white; border: none;
+            cursor: pointer; font-size: 9px; display: flex; align-items: center; justify-content: center;
+        }
+        .clip-element {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #b58368, #593e31);
+            border: 2px solid #593e31; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+        }
+        .clip-holes { display: flex; gap: 2px; }
+        .clip-holes span { width: 3px; height: 3px; border-radius: 50%; background: #33231a; }
+
+        .assembly-zone { flex: 1; height: 34px; position: relative; display: flex; align-items: center; overflow-x: auto; padding-right: 8px; }
+        .assembly-line { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #c8b59b; transform: translateY(-50%); z-index: 0; }
+        .items-container { display: flex; align-items: center; padding-left: 8px; gap: 2px; z-index: 1; }
+        
+        .placed-item { cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; }
+        .placed-item:hover { transform: scale(1.15); }
+        .placed-item.white-let { width: 20px; height: 20px; border-radius: 3px; background: #ffffff; color: #5c4e43; border: 1px solid #c8b59b; font-weight: 600; font-size: 10px; }
+        .placed-item.round-bead { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); }
+        .placed-item.flat-bead { width: 5px; height: 18px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.8); }
+        .placed-item.hex-bead { width: 20px; height: 20px; clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%); }
+        .placed-item.shape-bead, .placed-item.animal-bead { width: 22px; height: 22px; background: #ffffff; border-radius: 3px; font-size: 12px; border: 1px solid #c8b59b; }
+
+        .loop-zone { width: 32px; height: 16px; border: 2px solid #5c3a21; border-radius: 50%; margin-left: auto; opacity: 0.85; flex-shrink: 0; }
+        .loop-zone.mam-active { background-color: rgba(196, 124, 81, 0.25); border-color: #d99166; }
+        
+        .board-bottom-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 6px;
+            font-size: 10px;
+            color: #5c3a21;
+        }
+        .footer-legal {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+        }
+        .standards-text {
+            font-size: 9px;
+            color: #7a634e;
+            letter-spacing: 0.5px;
+        }
+        .non-contractual {
+            font-size: 8px;
+            color: #a39587;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="scroll-area">
+                <div class="section-title">1. Clips</div>
+                <div class="clips-grid" id="clip-options"></div>
+
+                <div class="section-title">2. Lettres (12mm)</div>
+                <div class="letters-grid" id="white-letters"></div>
+
+                <div class="section-title">3. Perles Rondes (12mm)</div>
+                <div class="beads-grid" id="round-beads"></div>
+
+                <div class="section-title">4. Perles Plates (2mm)</div>
+                <div class="beads-grid" id="flat-beads"></div>
+
+                <div class="section-title">5. Hexagones (12mm)</div>
+                <div class="beads-grid" id="hex-beads"></div>
+
+                <div class="section-title">6. Motifs (1ère offerte)</div>
+                <div class="shapes-grid" id="shape-beads"></div>
+
+                <div class="section-title">7. Animaux (1ère offerte)</div>
+                <div class="shapes-grid" id="animal-beads"></div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="sidebar-footer">
+                <div class="length-info" id="length-info-box">Perles : <span id="current-length">0</span> / 17 cm | +<span id="supplement-price">0</span>€</div>
+                <div class="btn-row">
+                    <button class="btn btn-autumn" id="btn-mam">MAM (+1€)</button>
+                    <button class="btn btn-wood" id="btn-reset">Effacer</button>
+                    <button class="btn btn-wood" id="btn-cart">Panier</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zone d'affichage -->
+        <div class="workspace">
+            <div class="wooden-board">
+                <div class="engraved-top">
+                    <span class="engraved-decor">🌿 ♥</span>
+                    <div class="engraved-title">Créa Margow</div>
+                    <span class="engraved-decor">♥ 🌿</span>
+                </div>
+
+                <div class="board-template-box">
+                    <div class="board-content">
+                        <div class="clip-wrapper">
+                            <button class="clip-reset-btn" id="clip-reset-icon">✕</button>
+                            <div class="clip-element" id="active-clip-display">
+                                <div class="clip-holes"><span></span><span></span><span></span></div>
+                            </div>
+                        </div>
+                        <div class="assembly-zone">
+                            <div class="assembly-line"></div>
+                            <div class="items-container" id="assembly-container"></div>
+                            <div class="loop-zone" id="loop-display"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="board-bottom-info">
+                    <span>17CM (Max perles)</span>
+                    <span>Cliquez sur une perle pour la retirer</span>
+                </div>
+                <div class="footer-legal">
+                    <span class="standards-text">Longueur maximale : 22 cm — norme EN12586</span>
+                    <span class="non-contractual">Image non contractuelle</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            /* ==========================================================
+             * CONFIGURATION - MES PRODUITS
+             * ----------------------------------------------------------
+             * ⚠️ Les couleurs/noms ci-dessous sont des PLACEHOLDERS.
+             * Remplace-les par ta vraie gamme (mêmes couleurs, mêmes noms
+             * que ceux que tu vends réellement). Les codes couleur "color"
+             * doivent être des codes hexadécimaux (#xxxxxx).
+             * Les nombres dans initialStocks / stocks restent utilisés en
+             * interne pour bloquer la sélection, même si rien ne s'affiche.
+             * ========================================================== */
+
+            const initialStocks = {
+                'clip_bois': 2,
+                'clip_terracotta': 1,
+                'clip_moutarde': 0,
+                'clip_chataigne': 5
+            };
+            
+            const clips = [
+                { id: 'clip_bois', name: 'Bois clair', color: '#8c6e54' },
+                { id: 'clip_terracotta', name: 'Terracotta', color: '#c47c51' },
+                { id: 'clip_moutarde', name: 'Moutarde', color: '#d9a04e' },
+                { id: 'clip_chataigne', name: 'Châtaigne', color: '#593e31' }
+            ];
+            
+            const whiteLetters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+            
+            const roundBeads = [
+                { color: '#c47c51', name: 'Terracotta' },
+                { color: '#d9a04e', name: 'Moutarde' },
+                { color: '#8c6e54', name: 'Bois clair' },
+                { color: '#e6be8a', name: 'Beige' },
+                { color: '#593e31', name: 'Châtaigne' },
+                { color: '#9e816d', name: 'Taupe' },
+                { color: '#f5eae2', name: 'Écru' },
+                { color: '#ffffff', name: 'Blanc' },
+                { color: '#f2ebd9', name: 'Sable' },
+                { color: '#b58368', name: 'Rosewood' }
+            ];
+            
+            const flatBeads = [
+                { color: '#c47c51', name: 'Terracotta' },
+                { color: '#d9a04e', name: 'Moutarde' },
+                { color: '#8c6e54', name: 'Bois clair' },
+                { color: '#e6be8a', name: 'Beige' },
+                { color: '#593e31', name: 'Châtaigne' },
+                { color: '#9e816d', name: 'Taupe' },
+                { color: '#ffffff', name: 'Blanc' },
+                { color: '#f2ebd9', name: 'Sable' }
+            ];
+            
+            const hexBeads = [
+                { color: '#c47c51', name: 'Terracotta' },
+                { color: '#d9a04e', name: 'Moutarde' },
+                { color: '#8c6e54', name: 'Bois clair' },
+                { color: '#e6be8a', name: 'Beige' },
+                { color: '#593e31', name: 'Châtaigne' },
+                { color: '#b58368', name: 'Rosewood' }
+            ];
+            
+            const shapeBeads = [
+                { icon: '⭐', name: 'Étoile', id: 'shape_etoile', size: 12, isFancy: true },
+                { icon: '❤️', name: 'Cœur', id: 'shape_coeur', size: 12, isFancy: true },
+                { icon: '🌿', name: 'Feuille', id: 'shape_feuille', size: 12, isFancy: true },
+                { icon: '🍄', name: 'Champignon', id: 'shape_champignon', size: 12, isFancy: true }
+            ];
+            
+            const animalBeads = [
+                { icon: '🐻', name: 'Ours', id: 'anim_ours', size: 12, isFancy: true },
+                { icon: '🐰', name: 'Lapin', id: 'anim_lapin', size: 12, isFancy: true },
+                { icon: '🦊', name: 'Renard', id: 'anim_renard', size: 12, isFancy: true },
+                { icon: '🐨', name: 'Koala', id: 'anim_koala', size: 12, isFancy: true },
+                { icon: '🦉', name: 'Hibou', id: 'anim_hibou', size: 12, isFancy: true },
+                { icon: '🦌', name: 'Biche', id: 'anim_biche', size: 12, isFancy: true }
+            ];
+
+            /* ========================== FIN CONFIGURATION ========================== */
+
+            const stocks = {};
+            clips.forEach(c => stocks[c.id] = initialStocks[c.id] !== undefined ? initialStocks[c.id] : 5);
+            whiteLetters.forEach(l => stocks['white_' + l] = 15);
+            roundBeads.forEach(b => stocks['round_' + b.color] = 20);
+            flatBeads.forEach(b => stocks['flat_' + b.color] = 20);
+            hexBeads.forEach(b => stocks['hex_' + b.color] = 20);
+            shapeBeads.forEach(s => stocks[s.id] = 8);
+            animalBeads.forEach(a => stocks[a.id] = 5);
+
+            const clipContainer = document.getElementById('clip-options');
+            const whiteContainer = document.getElementById('white-letters');
+            const roundBeadsContainer = document.getElementById('round-beads');
+            const flatBeadsContainer = document.getElementById('flat-beads');
+            const hexBeadsContainer = document.getElementById('hex-beads');
+            const shapeBeadsContainer = document.getElementById('shape-beads');
+            const animalBeadsContainer = document.getElementById('animal-beads');
+            const assemblyContainer = document.getElementById('assembly-container');
+            const activeClipDisplay = document.getElementById('active-clip-display');
+            const loopDisplay = document.getElementById('loop-display');
+            
+            const btnMam = document.getElementById('btn-mam');
+            const btnReset = document.getElementById('btn-reset');
+            const btnCart = document.getElementById('btn-cart');
+            const clipResetIcon = document.getElementById('clip-reset-icon');
+            const supplementPrice = document.getElementById('supplement-price');
+            const currentLengthDisplay = document.getElementById('current-length');
+            const lengthInfoBox = document.getElementById('length-info-box');
+
+            let isMamActive = false;
+            let itemsList = [];
+            let selectedClip = clips[0];
+            let activeClipId = clips[0].id;
+
+            function getTotalLengthMm() {
+                return itemsList.reduce((acc, item) => acc + item.sizeMm, 0);
+            }
+
+            // Le stock reste calculé et appliqué (bloque la sélection), même s'il n'est
+            // affiché nulle part dans l'interface.
+            function getAvailableStock(stockId) {
+                const totalInitial = stocks[stockId] !== undefined ? stocks[stockId] : 0;
+                const usedCount = itemsList.filter(item => item.stockId === stockId).length;
+                return totalInitial - usedCount;
+            }
+
+            function renderClips() {
+                clipContainer.innerHTML = '';
+                clips.forEach(clip => {
+                    const remaining = getAvailableStock(clip.id);
+                    const btn = document.createElement('div');
+                    btn.className = `clip-choice-btn ${remaining <= 0 ? 'out-of-stock' : ''}`;
+                    btn.innerHTML = `
+                        <div class="clip-color-dot" style="background-color: ${clip.color}"></div>
+                        <span>${clip.name}</span>
+                    `;
+                    btn.addEventListener('click', () => {
+                        if (remaining <= 0) {
+                            alert(`Désolé, "${clip.name}" n'est pas disponible actuellement.`);
+                            return;
+                        }
+                        activeClipId = clip.id;
+                        selectedClip = clip;
+                        activeClipDisplay.style.background = `radial-gradient(circle at 35% 35%, ${clip.color}, #593e31)`;
+                    });
+                    clipContainer.appendChild(btn);
+                });
+            }
+
+            function renderWhiteLetters() {
+                whiteContainer.innerHTML = '';
+                whiteLetters.forEach(lettre => {
+                    const stockId = 'white_' + lettre;
+                    const remaining = getAvailableStock(stockId);
+                    const btn = document.createElement('div');
+                    btn.className = `letter-btn ${remaining <= 0 ? 'out-of-stock' : ''}`;
+                    btn.textContent = lettre;
+                    
+                    btn.addEventListener('click', () => {
+                        if (remaining <= 0) {
+                            alert(`La lettre "${lettre}" n'est pas disponible actuellement.`);
+                            return;
+                        }
+                        addItem('white-let', lettre, stockId, 12, false);
+                    });
+                    whiteContainer.appendChild(btn);
+                });
+            }
+
+            function renderRoundBeads() {
+                roundBeadsContainer.innerHTML = '';
+                roundBeads.forEach(bead => {
+                    const stockId = 'round_' + bead.color;
+                    const remaining = getAvailableStock(stockId);
+                    const btn = document.createElement('div');
+                    btn.className = `bead-btn ${remaining <= 0 ? 'out-of-stock' : ''}`;
+                    btn.style.backgroundColor = bead.color;
+                    
+                    btn.addEventListener('click', () => {
+                        if (remaining <= 0) {
+                            alert(`Cette perle ronde ${bead.name.toLowerCase()} n'est pas disponible actuellement.`);
+                            return;
+                        }
+                        addItem('round-bead', bead.color, stockId, 12, false);
+                    });
+                    roundBeadsContainer.appendChild(btn);
+                });
+            }
+
+            function renderFlatBeads() {
+                flatBeadsContainer.innerHTML = '';
+                flatBeads.forEach(bead => {
+                    const stockId = 'flat_' + bead.color;
+                    const remaining = getAvailableStock(stockId);
+                    const btn = document.createElement('div');
+                    btn.className = `bead-btn flat ${remaining <= 0 ? 'out-of-stock' : ''}`;
+                    btn.style.backgroundColor = bead.color;
+                    
+                    btn.addEventListener('click', () => {
+                        if (remaining <= 0) {
+                            alert(`Cette perle plate ${bead.name.toLowerCase()} n'est pas disponible actuellement.`);
+                            return;
+                        }
+                        addItem('flat-bead', bead.color, stockId, 2, false);
+                    });
+                    flatBeadsContainer.appendChild(btn);
+                });
+            }
+
+            function renderHexBeads() {
+                hexBeadsContainer.innerHTML = '';
+                hexBeads.forEach(bead => {
+                    const stockId = 'hex_' + bead.color;
+                    const remaining = getAvailableStock(stockId);
+                    const btn = document.createElement('div');
+                    btn.className = `bead-btn hex ${remaining <= 0 ? 'out-of-stock' : ''}`;
+                    btn.style.backgroundColor = bead.color;
+                    
+                    btn.addEventListener('click', () => {
+                        if (remaining <= 0) {
+                            alert(`Cet hexagone ${bead.name.toLowerCase()} n'est pas disponible actuellement.`);
+                            return;
+                        }
+                        addItem('hex-bead', bead.color, stockId, 12, false);
+                    });
+                    hexBeadsContainer.appendChild(btn);
+                });
+            }
+
+            function renderShapes() {
+                shapeBeadsContainer.innerHTML = '';
+                shapeBeads.forEach(item => {
+                    const remaining = getAvailableStock(item.id);
+                    const btn = document.createElement('div');
+                    btn.className = `shape-btn ${remaining <= 0 ? 'out-of-stock' : ''}`;
+                    btn.innerHTML = `
+                        <span style="font-size:16px;">${item.icon}</span>
+                        <div class="lbl"><span>${item.name}</span><span>Motif</span></div>
+                    `;
+                    btn.addEventListener('click', () => {
+                        if (remaining <= 0) {
+                            alert(`Le motif "${item.name}" n'est pas disponible actuellement.`);
+                            return;
+                        }
+                        addItem('shape-bead', item.icon, item.id, item.size, true);
+                    });
+                    shapeBeadsContainer.appendChild(btn);
+                });
+            }
+
+            function renderAnimals() {
+                animalBeadsContainer.innerHTML = '';
+                animalBeads.forEach(item => {
+                    const remaining = getAvailableStock(item.id);
+                    const btn = document.createElement('div');
+                    btn.className = `shape-btn ${remaining <= 0 ? 'out-of-stock' : ''}`;
+                    btn.innerHTML = `
+                        <span style="font-size:16px;">${item.icon}</span>
+                        <div class="lbl"><span>${item.name}</span><span>Animal</span></div>
+                    `;
+                    btn.addEventListener('click', () => {
+                        if (remaining <= 0) {
+                            alert(`L'animal "${item.name}" n'est pas disponible actuellement.`);
+                            return;
+                        }
+                        addItem('animal-bead', item.icon, item.id, item.size, true);
+                    });
+                    animalBeadsContainer.appendChild(btn);
+                });
+            }
+
+            function updateAllUI() {
+                renderClips();
+                renderWhiteLetters();
+                renderRoundBeads();
+                renderFlatBeads();
+                renderHexBeads();
+                renderShapes();
+                renderAnimals();
+            }
+
+            function addItem(type, value, stockId, sizeMm, isFancy) {
+                if (getAvailableStock(stockId) <= 0) {
+                    alert('Cet article n\'est pas disponible actuellement.');
+                    return;
+                }
+                if (getTotalLengthMm() + sizeMm > 170) {
+                    alert('Longueur maximale de perles atteinte (17 cm) !');
+                    return;
+                }
+                
+                itemsList.push({ type, value, stockId, sizeMm, isFancy });
+                renderAssembly();
+            }
+
+            function renderAssembly() {
+                assemblyContainer.innerHTML = '';
+                itemsList.forEach((item, index) => {
+                    const el = document.createElement('div');
+                    el.className = `placed-item ${item.type}`;
+                    if (['round-bead', 'flat-bead', 'hex-bead'].includes(item.type)) el.style.backgroundColor = item.value;
+                    else el.textContent = item.value;
+                    
+                    el.addEventListener('click', () => {
+                        itemsList.splice(index, 1);
+                        renderAssembly();
+                    });
+                    assemblyContainer.appendChild(el);
+                });
+
+                const currentLengthMm = getTotalLengthMm();
+                const lengthCm = (currentLengthMm / 10).toFixed(1);
+                currentLengthDisplay.textContent = lengthCm;
+
+                if (currentLengthMm >= 170) {
+                    lengthInfoBox.classList.add('max-reached');
+                } else {
+                    lengthInfoBox.classList.remove('max-reached');
+                }
+
+                const fanciesCount = itemsList.filter(i => i.isFancy).length;
+                const fancySupplement = fanciesCount > 1 ? fanciesCount - 1 : 0;
+                const mamSupplement = isMamActive ? 1 : 0;
+                const totalSupplement = fancySupplement + mamSupplement;
+                
+                supplementPrice.textContent = totalSupplement;
+
+                updateAllUI();
+            }
+
+            btnMam.addEventListener('click', () => {
+                isMamActive = !isMamActive;
+                btnMam.classList.toggle('active', isMamActive);
+                loopDisplay.classList.toggle('mam-active', isMamActive);
+                renderAssembly();
+            });
+
+            function resetAll() {
+                itemsList = [];
+                isMamActive = false;
+                btnMam.classList.remove('active');
+                loopDisplay.classList.remove('mam-active');
+                renderAssembly();
+            }
+
+            btnReset.addEventListener('click', resetAll);
+            clipResetIcon.addEventListener('click', resetAll);
+
+            btnCart.addEventListener('click', () => {
+                if (itemsList.length === 0) return alert('Votre attache-tétine est vide !');
+                const composition = itemsList.map(item => item.value).join(' - ');
+                const lengthCm = (getTotalLengthMm() / 10).toFixed(1);
+                
+                alert(`Commande validée !\nClip: ${selectedClip.name}\nPerles (${lengthCm} cm): ${composition}\nMAM: ${isMamActive ? 'Oui (+1€)' : 'Non'}`);
+                
+                resetAll();
+            });
+
+            updateAllUI();
+        });
+    </script>
+</body>
+</html>
